@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InformationDockContents</class>
+ <widget class="QWidget" name="InformationDockContents">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="infoLabel">
+     <property name="text">
+      <string>&lt;b&gt;Application Overview&lt;/b&gt;&lt;br&gt;&lt;br&gt;
+This window focuses on the core workflow:&lt;br&gt;&lt;br&gt;
+- Background work with progress&lt;br&gt;
+- Theme and preference controls&lt;br&gt;
+- Status updates and commands&lt;br&gt;&lt;br&gt;
+Dock widgets can be moved, docked, or floated.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
