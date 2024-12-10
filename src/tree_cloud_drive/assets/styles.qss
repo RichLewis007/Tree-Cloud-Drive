@@ -1,0 +1,13 @@
+/* Very small starter theme (QSS = Qt Style Sheets). */
+
+QMainWindow {
+  background: #ffffff;
+}
+
+QLabel {
+  font-size: 14px;
+}
+
+QPushButton {
+  padding: 6px 10px;
+}

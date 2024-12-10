@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CommandPaletteContents</class>
+ <widget class="QWidget" name="CommandPaletteContents">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>5</number>
+   </property>
+   <property name="leftMargin">
+    <number>10</number>
+   </property>
+   <property name="topMargin">
+    <number>10</number>
+   </property>
+   <property name="rightMargin">
+    <number>10</number>
+   </property>
+   <property name="bottomMargin">
+    <number>10</number>
+   </property>
+   <item>
+    <widget class="QLineEdit" name="searchInput">
+     <property name="placeholderText">
+      <string>Type to search commands...</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QListView" name="commandList">
+     <property name="minimumWidth">
+      <number>500</number>
+     </property>
+     <property name="maximumHeight">
+      <number>300</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="hintLabel">
+     <property name="text">
+      <string>Press Enter to execute, Escape to close</string>
+     </property>
+     <property name="styleSheet">
+      <string>color: gray; font-size: 10px;</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
+
+
