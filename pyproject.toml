@@ -1,6 +1,6 @@
 [project]
 name = "tree-cloud-drive"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python desktop GUI which shows an jinteractive tree view of a selected cloud drive folder using rclone for retrieving cloud file and folder information."
 readme = "README.md"
 requires-python = ">=3.13.11"

@@ -8,6 +8,7 @@ This module provides the main application startup logic, including:
 - Main window creation and event loop execution
 """
 # Author: Rich Lewis - GitHub: @RichLewis007
+# Version: 0.2.0
 
 from __future__ import annotations
 

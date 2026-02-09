@@ -19,7 +19,7 @@ from pathlib import Path
 APP_NAME = "tree-cloud-drive"
 APP_ORG = "RichLewis.com"
 _ASSETS_DIR = "assets"  # Directory name within package for assets
-_DEFAULT_VERSION = "0.1.0"  # Fallback version if unable to determine
+_DEFAULT_VERSION = "0.2.0"  # Fallback version if unable to determine
 
 
 def app_version() -> str:

@@ -1,80 +1,43 @@
+![Tree Cloud Drive Banner](assets/tree-cloud-drive-banner.jpg)
+
 # Tree Cloud Drive
 
-Easily show folders in selected cloud drive in a tree in a desktop GUI app. Cloud folder retrieval handled by rclone.
+**Version:** 0.2.0
+Author: Rich Lewis - GitHub: [@RichLewis007](https://github.com/RichLewis007)
 
-## What this includes
+Browse your cloud drives like a friendly file explorer. The classic `tree` command shows a simple textual tree of local folders. Tree Cloud Drive takes that idea and makes it interactive for any selected cloud remote: you get a clickable tree of folders, plus actions like downloading — all from a desktop app instead of a web browser. It uses your local installation of the trusted open source `rclone` tool to list and download cloud folders. This is safer than handing passwords or API keys to a new app, because authentication and access stay inside rclone’s well‑tested configuration and your existing credentials never pass through Tree Cloud Drive directly.
 
-- **Main window + dock widgets** built from Qt Designer `.ui` files
-- **Background work demo** with progress reporting and cancellation
-- **Preferences dialog** (theme + splash screen settings)
-- **Command palette** for quick actions (`Ctrl+K`, `Ctrl+Shift+P`)
-- **Window state persistence** (geometry + dock/toolbar state)
-- **Single-instance guard** (prevents multiple running instances)
-- **Error dialog** for uncaught exceptions
-- **Theming via QSS** (light/dark)
+**What you can do**
 
-## Project layout
+- Pick a cloud remote from a dropdown.
+- Choose a top‑level folder and browse subfolders in a tree.
+- Right‑click any folder to download it locally with rclone progress.
+- Switch between light and dark themes.
 
-```
-src/tree_cloud_drive/
-  app.py              # App startup, exception hook, theme, icon
-  main_window.py      # Main window UI + interactions
-  core/
-    exceptions.py     # Global exception hook
-    paths.py          # Version + packaged asset helpers
-    settings.py       # QSettings wrapper
-    ui_loader.py      # Qt Designer .ui loader
-    window_state.py   # Save/restore window state
-    workers.py        # Background worker framework
-  dialogs/
-    about.py
-    command_palette.py
-    error_dialog.py
-    preferences.py
-  assets/
-    ui/               # Qt Designer .ui files
-    styles.qss
-    styles_dark.qss
-    app_icon.png
-```
-
-## Setup
-
+**Quick start**
 Prerequisites:
+
 - Install and configure `rclone` for your cloud provider.
 - Python 3.13+
 
-```bash
-./scripts/setup-initial-dev-environment.sh
-```
-
-Or manually:
-
-```bash
-uv sync --dev
-uv pip install -e .
-```
-
-## Run
+Launch the app:
 
 ```bash
 uv run tree-cloud-drive
 ```
 
-## Dev checks
+If rclone is set up correctly, this should work:
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run ruff format .
-uv run pyright
+rclone listremotes
 ```
 
-## Where to start
+**How to use**
 
-- `src/tree_cloud_drive/app.py` – startup + theme/icon wiring
-- `src/tree_cloud_drive/main_window.py` – UI wiring + background work demo
-- `src/tree_cloud_drive/core/ui_loader.py` – .ui loader
-- `src/tree_cloud_drive/core/workers.py` – worker framework
-- `src/tree_cloud_drive/dialogs/preferences.py` – preferences dialog
-- `local/step-1-DO-THIS-FIRST.md` – quickstart checklist
+1. Choose a remote from the “Cloud remote” dropdown.
+2. Pick a top‑level folder.
+3. Expand the tree to browse subfolders.
+4. Right‑click a folder and choose “Download folder” to save it locally.
+
+**Need to tweak or contribute?**
+Developer docs live in `Developer.md`.

@@ -75,20 +75,31 @@ class AboutDialog(QDialog):
         if ok_button is None:
             raise RuntimeError("okButton not found in about_dialog.ui")
 
-        # App icon - load and set pixmap
+        # App logo - load and set pixmap
         try:
-            icon_bytes = app_icon_bytes()
+            from importlib.resources import files
+
+            logo_path = files("tree_cloud_drive") / "assets" / "tree-cloud-drive-logo.jpg"
+            logo_bytes = logo_path.read_bytes()
             pixmap = QPixmap()
-            if pixmap.loadFromData(icon_bytes):
+            if pixmap.loadFromData(logo_bytes):
                 # Set window icon
-                self.setWindowIcon(QIcon(pixmap))
+                try:
+                    icon_bytes = app_icon_bytes()
+                    icon_pixmap = QPixmap()
+                    if icon_pixmap.loadFromData(icon_bytes):
+                        self.setWindowIcon(QIcon(icon_pixmap))
+                except Exception:
+                    pass
                 # Scale icon to reasonable size for display
                 scaled_pixmap = pixmap.scaled(
-                    QSize(64, 64),
+                    QSize(96, 96),
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
                 icon_label.setPixmap(scaled_pixmap)
+                icon_label.setVisible(True)
+                icon_label.setScaledContents(False)
         except Exception:
             # If icon loading fails, hide the icon label
             icon_label.setVisible(False)

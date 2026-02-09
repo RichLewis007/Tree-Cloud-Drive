@@ -4,13 +4,11 @@
 # Auto-detects project information from pyproject.toml
 # Uses tui-menus.sh for TUI menu functionality
 #
-# Version: 1.2
 
 set -uo pipefail
 
 # Script metadata constants
-readonly MENU_VERSION="1.1"
-readonly MENU_DATE="2026-02-09"
+readonly MENU_VERSION="1.3"
 
 # Source the tui-menus library (provides TUI menu functions like ui_run_page, log_info, etc.)
 # Try multiple locations for portability:
@@ -493,6 +491,23 @@ handler_build_package() {
         uv build
 }
 
+handler_bump_version() {
+    local current_version="$PROJECT_VERSION"
+    local new_version
+    printf "Enter new version (current: %s): " "$current_version"
+    read -r new_version
+    if [ -z "$new_version" ]; then
+        log_warn "No version entered; cancelled."
+        return 0
+    fi
+    if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_error "Invalid version format. Use X.Y.Z"
+        return 1
+    fi
+    run_timed_command "Bump version to $new_version" \
+        python scripts/bump-version.py "$new_version"
+}
+
 # ============================================================================
 # LINTER HANDLERS
 # ============================================================================
@@ -906,6 +921,11 @@ main_menu() {
     if [ "$HAS_UV" = true ]; then
         menu_items+=("Build Python package (wheel)"::handler_build_package)
     fi
+
+    # Versioning (if script exists)
+    if [ -f "scripts/bump-version.py" ]; then
+        menu_items+=("Bump project version"::handler_bump_version)
+    fi
     
     # Sync dependencies
     if [ "$HAS_UV" = true ]; then
@@ -972,4 +992,3 @@ main_menu() {
 
 # Run the main menu
 main_menu
-

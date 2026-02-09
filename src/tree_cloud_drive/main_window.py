@@ -13,6 +13,7 @@ accessed programmatically for signal/slot connections.
 
 from __future__ import annotations
 
+import subprocess
 import time
 
 from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Slot
@@ -30,12 +31,15 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QDockWidget,
     QLabel,
+    QComboBox,
     QMainWindow,
     QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
     QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
     QToolBar,
     QWidget,
 )
@@ -46,6 +50,7 @@ from .core.ui_loader import load_ui
 from .core.window_state import WindowStateManager
 from .core.workers import WorkContext, Worker, WorkerPool, WorkRequest
 from .dialogs.command_palette import Command, CommandPalette
+from .dialogs.download_dialog import DownloadDialog
 from .dialogs.preferences import PreferencesDialog
 
 
@@ -67,9 +72,16 @@ class MainWindow(QMainWindow):
         self.btn_work: QPushButton
         self.btn_cancel: QPushButton
         self.btn_prefs: QPushButton
+        self.remote_combo: QComboBox
+        self.folder_combo: QComboBox
+        self.folder_tree: QTreeWidget
         self.ui: QWidget
         self.tab_widget: QTabWidget
         self.view_menu: QMenu
+        self.remote_worker: Worker[list[str]] | None
+        self.folder_worker: Worker[list[str]] | None
+        self.tree_worker: Worker[list[str]] | None
+        self._tree_remote: str | None
 
         self.setWindowTitle(APP_NAME)
 
@@ -77,6 +89,10 @@ class MainWindow(QMainWindow):
         self._build_menus()  # Build menus before loading UI so dock widgets can add to View menu
         self._load_ui()
         self.active_worker = None
+        self.remote_worker = None
+        self.folder_worker = None
+        self.tree_worker = None
+        self._tree_remote = None
 
         # Create horizontal toolbar with square icon buttons
         toolbar = self._create_toolbar()
@@ -85,12 +101,20 @@ class MainWindow(QMainWindow):
         self.btn_work.clicked.connect(self.on_run_work)
         self.btn_cancel.clicked.connect(self.on_cancel_work)
         self.btn_prefs.clicked.connect(self.on_open_prefs)
+        self.remote_combo.currentIndexChanged.connect(self._on_remote_selected)
+        self.folder_combo.currentIndexChanged.connect(self._on_folder_selected)
+        self.folder_tree.itemExpanded.connect(self._on_tree_item_expanded)
+        self.folder_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.folder_tree.customContextMenuRequested.connect(self._on_tree_context_menu)
 
         # Restore window geometry and state
         self.window_state.restore_state()
 
         # Setup command palette
         self._setup_command_palette()
+
+        # Load available remotes on startup
+        self._load_remotes()
 
     def _build_actions(self) -> None:
         self.action_work = QAction("Run background work", self)
@@ -254,6 +278,271 @@ class MainWindow(QMainWindow):
         if btn_prefs is None:
             raise RuntimeError("prefsButton not found in main_window.ui")
         self.btn_prefs = btn_prefs
+
+        remote_combo = self.ui.findChild(QComboBox, "remoteCombo")
+        if remote_combo is None:
+            raise RuntimeError("remoteCombo not found in main_window.ui")
+        self.remote_combo = remote_combo
+        self.remote_combo.clear()
+        self.remote_combo.addItem("Select a remote...")
+
+        folder_combo = self.ui.findChild(QComboBox, "folderCombo")
+        if folder_combo is None:
+            raise RuntimeError("folderCombo not found in main_window.ui")
+        self.folder_combo = folder_combo
+        self.folder_combo.clear()
+        self.folder_combo.addItem("Select a folder...")
+        self.folder_combo.setEnabled(False)
+
+        folder_tree = self.ui.findChild(QTreeWidget, "folderTree")
+        if folder_tree is None:
+            raise RuntimeError("folderTree not found in main_window.ui")
+        self.folder_tree = folder_tree
+        self.folder_tree.clear()
+        self.folder_tree.setHeaderHidden(True)
+
+    def _set_tree_placeholder(self, item: QTreeWidgetItem) -> None:
+        placeholder = QTreeWidgetItem(["Loading..."])
+        item.addChild(placeholder)
+
+    def _clear_tree_placeholder(self, item: QTreeWidgetItem) -> None:
+        for idx in range(item.childCount()):
+            child = item.child(idx)
+            if child and child.text(0) == "Loading...":
+                item.removeChild(child)
+                break
+
+    def _set_item_loaded(self, item: QTreeWidgetItem, loaded: bool) -> None:
+        item.setData(0, Qt.ItemDataRole.UserRole + 1, loaded)
+
+    def _is_item_loaded(self, item: QTreeWidgetItem) -> bool:
+        return bool(item.data(0, Qt.ItemDataRole.UserRole + 1))
+
+    def _set_item_path(self, item: QTreeWidgetItem, path: str) -> None:
+        item.setData(0, Qt.ItemDataRole.UserRole, path)
+
+    def _get_item_path(self, item: QTreeWidgetItem) -> str:
+        value = item.data(0, Qt.ItemDataRole.UserRole)
+        return str(value) if value is not None else ""
+
+    def _set_status(self, message: str, timeout_ms: int = 2000) -> None:
+        self.label.setText(message)
+        self.statusBar().showMessage(message, timeout_ms)
+
+    def _run_rclone(self, args: list[str]) -> list[str]:
+        result = subprocess.run(
+            ["rclone", *args],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            msg = result.stderr.strip() or result.stdout.strip() or "Unknown rclone error"
+            raise RuntimeError(msg)
+        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+    def _load_remotes(self) -> None:
+        if self.remote_worker is not None:
+            self.remote_worker.cancel()
+            self.remote_worker = None
+
+        self.remote_combo.setEnabled(False)
+        self.remote_combo.clear()
+        self.remote_combo.addItem("Loading remotes...")
+        self.folder_combo.setEnabled(False)
+        self.folder_combo.clear()
+        self.folder_combo.addItem("Select a folder...")
+        self.folder_tree.clear()
+        self._set_status("Loading cloud remotes...")
+
+        def work(ctx: WorkContext) -> list[str]:
+            ctx.check_cancelled()
+            remotes = self._run_rclone(["listremotes"])
+            return [remote.rstrip(":") for remote in remotes]
+
+        def done(remotes: list[str]) -> None:
+            self.remote_combo.clear()
+            self.remote_combo.addItem("Select a remote...")
+            if remotes:
+                self.remote_combo.addItems(sorted(remotes))
+            self.remote_combo.setEnabled(True)
+            self._set_status("Select a cloud remote.")
+            self.remote_worker = None
+
+        def error(msg: str) -> None:
+            self.remote_combo.clear()
+            self.remote_combo.addItem("Select a remote...")
+            self.remote_combo.setEnabled(True)
+            self.remote_worker = None
+            QMessageBox.critical(self, "Rclone error", msg)
+            self._set_status("Failed to load remotes.")
+
+        req = WorkRequest(fn=work, on_done=done, on_error=error)
+        self.remote_worker = self.pool.submit(req)
+
+    def _on_remote_selected(self) -> None:
+        idx = self.remote_combo.currentIndex()
+        if idx <= 0:
+            self.folder_combo.setEnabled(False)
+            self.folder_combo.clear()
+            self.folder_combo.addItem("Select a folder...")
+            self.folder_tree.clear()
+            return
+        remote = self.remote_combo.currentText()
+        self._load_top_level_dirs(remote)
+
+    def _load_top_level_dirs(self, remote: str) -> None:
+        if self.folder_worker is not None:
+            self.folder_worker.cancel()
+            self.folder_worker = None
+
+        self.folder_combo.setEnabled(False)
+        self.folder_combo.clear()
+        self.folder_combo.addItem("Loading folders...")
+        self.folder_tree.clear()
+        self._set_status(f"Loading folders from {remote}...")
+
+        def work(ctx: WorkContext) -> list[str]:
+            ctx.check_cancelled()
+            dirs = self._run_rclone(["lsf", "--dirs-only", "--max-depth", "1", f"{remote}:"])
+            return [d.rstrip("/") for d in dirs]
+
+        def done(dirs: list[str]) -> None:
+            self.folder_combo.clear()
+            self.folder_combo.addItem("Select a folder...")
+            if dirs:
+                self.folder_combo.addItems(sorted(dirs))
+                self.folder_combo.setEnabled(True)
+                self._set_status("Select a top-level folder.")
+            else:
+                self.folder_combo.setEnabled(False)
+                self._set_status("No folders found in remote.")
+            self.folder_worker = None
+
+        def error(msg: str) -> None:
+            self.folder_combo.clear()
+            self.folder_combo.addItem("Select a folder...")
+            self.folder_combo.setEnabled(False)
+            self.folder_worker = None
+            QMessageBox.critical(self, "Rclone error", msg)
+            self._set_status("Failed to load folders.")
+
+        req = WorkRequest(fn=work, on_done=done, on_error=error)
+        self.folder_worker = self.pool.submit(req)
+
+    def _on_folder_selected(self) -> None:
+        if self.remote_combo.currentIndex() <= 0:
+            return
+        idx = self.folder_combo.currentIndex()
+        if idx <= 0:
+            self.folder_tree.clear()
+            return
+        remote = self.remote_combo.currentText()
+        folder = self.folder_combo.currentText()
+        self._load_folder_tree(remote, folder)
+
+    def _load_folder_tree(self, remote: str, folder: str) -> None:
+        if self.tree_worker is not None:
+            self.tree_worker.cancel()
+            self.tree_worker = None
+
+        self.folder_tree.clear()
+        self._tree_remote = remote
+        self._set_status(f"Loading {remote}:{folder}...")
+
+        root_item = QTreeWidgetItem([folder])
+        self._set_item_path(root_item, folder)
+        self._set_item_loaded(root_item, False)
+        self._set_tree_placeholder(root_item)
+        self.folder_tree.addTopLevelItem(root_item)
+        root_item.setExpanded(True)
+
+        def work(ctx: WorkContext) -> list[str]:
+            ctx.check_cancelled()
+            dirs = self._run_rclone(["lsf", "--dirs-only", "--max-depth", "1", f"{remote}:{folder}"])
+            return [d.rstrip("/") for d in dirs]
+
+        def done(dirs: list[str]) -> None:
+            self._clear_tree_placeholder(root_item)
+            self._populate_children(root_item, dirs)
+            self._set_item_loaded(root_item, True)
+            self._set_status(f"Loaded {remote}:{folder}")
+            self.tree_worker = None
+
+        def error(msg: str) -> None:
+            self.folder_tree.clear()
+            self.tree_worker = None
+            QMessageBox.critical(self, "Rclone error", msg)
+            self._set_status("Failed to load folder tree.")
+
+        req = WorkRequest(fn=work, on_done=done, on_error=error)
+        self.tree_worker = self.pool.submit(req)
+
+    def _populate_children(self, parent: QTreeWidgetItem, paths: list[str]) -> None:
+        base_path = self._get_item_path(parent)
+        for path in sorted(paths):
+            name = path.split("/")[-1] if path else path
+            item = QTreeWidgetItem([name])
+            full_path = f"{base_path}/{path}" if base_path else path
+            self._set_item_path(item, full_path)
+            self._set_item_loaded(item, False)
+            self._set_tree_placeholder(item)
+            parent.addChild(item)
+
+    def _on_tree_item_expanded(self, item: QTreeWidgetItem) -> None:
+        if self._tree_remote is None:
+            return
+        if self._is_item_loaded(item):
+            return
+        path = self._get_item_path(item)
+        if not path:
+            return
+        self._load_children_for_item(item, self._tree_remote, path)
+
+    def _load_children_for_item(
+        self, item: QTreeWidgetItem, remote: str, path: str
+    ) -> None:
+        if self.tree_worker is not None:
+            self.tree_worker.cancel()
+            self.tree_worker = None
+
+        self._set_status(f"Loading {remote}:{path}...")
+
+        def work(ctx: WorkContext) -> list[str]:
+            ctx.check_cancelled()
+            dirs = self._run_rclone(["lsf", "--dirs-only", "--max-depth", "1", f"{remote}:{path}"])
+            return [d.rstrip("/") for d in dirs]
+
+        def done(dirs: list[str]) -> None:
+            self._clear_tree_placeholder(item)
+            self._populate_children(item, dirs)
+            self._set_item_loaded(item, True)
+            self._set_status(f"Loaded {remote}:{path}")
+            self.tree_worker = None
+
+        def error(msg: str) -> None:
+            self._clear_tree_placeholder(item)
+            self.tree_worker = None
+            QMessageBox.critical(self, "Rclone error", msg)
+            self._set_status("Failed to load folder.")
+
+        req = WorkRequest(fn=work, on_done=done, on_error=error)
+        self.tree_worker = self.pool.submit(req)
+
+    def _on_tree_context_menu(self, pos) -> None:  # type: ignore[override]
+        item = self.folder_tree.itemAt(pos)
+        if item is None or self._tree_remote is None:
+            return
+        path = self._get_item_path(item)
+        if not path:
+            return
+        menu = QMenu(self)
+        download_action = menu.addAction("Download folder")
+        selected = menu.exec(self.folder_tree.mapToGlobal(pos))
+        if selected == download_action:
+            remote_path = f"{self._tree_remote}:{path}"
+            dlg = DownloadDialog(remote_path=remote_path, parent=self)
+            dlg.exec()
 
     def _create_dock_widgets(self) -> None:
         """Create dock widgets for additional content areas."""
