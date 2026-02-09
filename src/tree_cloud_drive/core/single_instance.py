@@ -47,11 +47,10 @@ class SingleInstanceGuard:
 
         if self.socket.waitForConnected(500):
             # Another instance is running
-            self.socket.disconnectFromServer()
-            self.socket = None
             return True
 
         # No other instance, create server
+        self.socket = None
         self._create_server(socket_name)
         return False
 
@@ -59,6 +58,8 @@ class SingleInstanceGuard:
         """Create a local server to listen for other instances."""
         self.server = QLocalServer()
 
+        # Remove stale server/socket entries to avoid listen failures.
+        QLocalServer.removeServer(socket_name)
         # Remove existing socket file if it exists (Linux/Unix)
         if sys.platform != "win32":
             import contextlib
@@ -71,7 +72,7 @@ class SingleInstanceGuard:
         if self.server.listen(socket_name):
             self._is_running = True
         else:
-            pass
+            self._is_running = False
 
     def send_message_to_existing_instance(self, message: bytes = b"activate") -> bool:
         """

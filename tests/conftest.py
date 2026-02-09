@@ -1,4 +1,5 @@
 """Shared pytest fixtures for GUI tests."""
+# Author: Rich Lewis - GitHub: @RichLewis007
 
 from __future__ import annotations
 
@@ -11,8 +12,6 @@ from tree_cloud_drive.main_window import MainWindow
 @pytest.fixture
 def settings() -> Settings:
     """Provide a fresh Settings instance for tests."""
-
-# Author: Rich Lewis - GitHub: @RichLewis007
 
     return Settings()
 

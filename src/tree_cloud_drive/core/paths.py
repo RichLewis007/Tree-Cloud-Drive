@@ -5,8 +5,9 @@ This module provides functions for accessing:
 - Works both from source and when installed from wheels
 
 The module uses importlib.resources for accessing packaged assets.
+
+Author: Rich Lewis - GitHub: @RichLewis007
 """
-# Author: Rich Lewis - GitHub: @RichLewis007
 
 from __future__ import annotations
 
@@ -16,9 +17,9 @@ from pathlib import Path
 
 # Application metadata constants
 APP_NAME = "tree-cloud-drive"
-APP_ORG = "ExampleOrg"
+APP_ORG = "RichLewis.com"
 _ASSETS_DIR = "assets"  # Directory name within package for assets
-_DEFAULT_VERSION = "0.2.0"  # Fallback version if unable to determine
+_DEFAULT_VERSION = "0.1.0"  # Fallback version if unable to determine
 
 
 def app_version() -> str:
@@ -30,7 +31,7 @@ def app_version() -> str:
     3. Returns default version as fallback
 
     Returns:
-        Version string (e.g., "0.2.0")
+        Version string (e.g., "0.1.0")
     """
     # Try package metadata first (works when installed)
     try:

@@ -9,10 +9,9 @@ using PySide6. It includes best practices for:
 - Command palette
 - And more
 
-Author: Rich Lewis - GitHub: @RichLewis007
-
-See README.md and local/ documentation for detailed information.
+See README.md documentation for detailed information.
 """
+
 # Author: Rich Lewis - GitHub: @RichLewis007
 
 __all__ = []

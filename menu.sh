@@ -10,7 +10,7 @@ set -uo pipefail
 
 # Script metadata constants
 readonly MENU_VERSION="1.1"
-readonly MENU_DATE="2024-01-01"
+readonly MENU_DATE="2026-02-09"
 
 # Source the tui-menus library (provides TUI menu functions like ui_run_page, log_info, etc.)
 # Try multiple locations for portability:

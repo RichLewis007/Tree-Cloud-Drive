@@ -1,8 +1,6 @@
-# tree-cloud-drive
+# Tree Cloud Drive
 
-A small, clean PySide6 starter project focused on clarity, separation of concerns, and
-practical best practices. It keeps the UI simple while demonstrating how to structure
-an application so it is easy to grow.
+Easily show folders in selected cloud drive in a tree in a desktop GUI app. Cloud folder retrieval handled by rclone.
 
 ## What this includes
 
@@ -42,8 +40,12 @@ src/tree_cloud_drive/
 
 ## Setup
 
+Prerequisites:
+- Install and configure `rclone` for your cloud provider.
+- Python 3.13+
+
 ```bash
-./scripts/setup.sh
+./scripts/setup-initial-dev-environment.sh
 ```
 
 Or manually:
@@ -75,3 +77,4 @@ uv run pyright
 - `src/tree_cloud_drive/core/ui_loader.py` – .ui loader
 - `src/tree_cloud_drive/core/workers.py` – worker framework
 - `src/tree_cloud_drive/dialogs/preferences.py` – preferences dialog
+- `local/step-1-DO-THIS-FIRST.md` – quickstart checklist
